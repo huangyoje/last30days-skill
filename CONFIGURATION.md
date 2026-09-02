@@ -161,6 +161,7 @@ python3 skills/last30days/scripts/last30days.py "MCP servers" \
 | Bluesky | `BSKY_HANDLE` + `BSKY_APP_PASSWORD` | Bluesky items | yes (app password at bsky.app) |
 | V2EX | none (public API) | V2EX hot topics + node listings, relevance-filtered | no; always eligible, disable with `EXCLUDE_SOURCES=v2ex` |
 | Xueqiu (雪球) | `XUEQIU_COOKIE` | Chinese investor sentiment statuses, relevance-filtered | yes (browser session cookie); auto-activates with StockTwits for ticker/crypto topics |
+| Weibo (微博) | `WEIBO_COOKIE` | Chinese microblog statuses from mobile search (综合 + 实时), relevance-filtered | yes (browser session cookie); general-purpose, activates for any topic when the cookie is set |
 | TruthSocial | `TRUTHSOCIAL_TOKEN` | TruthSocial items | yes |
 | Web search | one of: `BRAVE_API_KEY`, `EXA_API_KEY`, `SERPER_API_KEY`, `PARALLEL_API_KEY` | `--auto-resolve` and Step 2 supplements | Brave has a free tier; native WebSearch on Claude Code / Codex / Gemini works as a fallback |
 | Perplexity Agent API / Search API / Deep Research | `PERPLEXITY_API_KEY` (preferred) or `OPENROUTER_API_KEY` (Sonar fallback) | `INCLUDE_SOURCES=perplexity`; `--deep-research` uses background Agent API with a direct key or synchronous Sonar through OpenRouter | no |
@@ -236,6 +237,11 @@ BSKY_APP_PASSWORD=<your-app-password>
 # export, same pattern as X cookies). Auto-activates for ticker/crypto topics
 # together with StockTwits; without it the source is not registered.
 # XUEQIU_COOKIE=xq_a_token=...; xqat=...
+
+# Weibo (微博): cookie from your logged-in browser session on m.weibo.cn
+# (Cookie-Editor export, same pattern as X cookies). General-purpose source
+# — activates for any topic. Without it the source is not registered.
+# WEIBO_COOKIE=SUB=...; SUBP=...; _T_WM=...
 ```
 
 After editing: `chmod 600 ~/.config/last30days/.env` (or `chmod 600 .claude/last30days.env` if using the project-scoped variant).

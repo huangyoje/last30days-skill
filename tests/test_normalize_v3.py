@@ -372,6 +372,32 @@ class NormalizeV3Tests(unittest.TestCase):
         self.assertEqual(normalized[0].author, "trader")
         self.assertEqual(normalized[0].metadata["symbols"], ["SH600519"])
 
+    def test_weibo_container_and_metadata(self):
+        items = [
+            {
+                "id": "4123456789",
+                "title": "AI 讨论",
+                "url": "https://m.weibo.cn/detail/4123456789",
+                "snippet": "AI 讨论 大模型",
+                "author": "tester",
+                "date": "2026-03-01",
+                "date_confidence": "high",
+                "relevance": 0.85,
+                "why_relevant": "overlap",
+                "engagement": {"likes": 42, "comments": 5, "reposts": 2},
+                "container": "微博",
+                "metadata": {"mblog_id": "4123456789", "author_id": "999"},
+            }
+        ]
+        normalized = normalize.normalize_source_items(
+            "weibo", items, "2026-02-15", "2026-03-17",
+        )
+        self.assertEqual(len(normalized), 1)
+        self.assertEqual(normalized[0].container, "微博")
+        self.assertEqual(normalized[0].author, "tester")
+        self.assertEqual(normalized[0].engagement["likes"], 42)
+        self.assertEqual(normalized[0].metadata["mblog_id"], "4123456789")
+
     def test_unsupported_source_still_raises(self):
         # Guard: new sources must register a normalizer or the pipeline
         # fails loudly at the shared boundary, not silently.

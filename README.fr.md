@@ -83,6 +83,7 @@ Si vous rencontrez un PDG, avez-vous lu tous ses tweets et toutes ses transcript
 | **Bluesky** | La couche sociale décentralisée. Les posts AT Protocol issus de la migration post-Twitter. |
 | **V2EX** | Le signal des communautés tech chinoises. Sujets populaires et listes de nœuds via l'API publique de V2EX, filtrés par pertinence. Gratuit, sans clé API. |
 | **Xueqiu (雪球)** | Le sentiment des investisseurs chinois. Statuts de la timeline publique filtrés par pertinence ; activation automatique pour les sujets ticker/crypto quand `XUEQIU_COOKIE` est configuré. |
+| **Weibo (微博)** | Microblog chinois. Statuts de la recherche mobile (综合 + 实时) filtrés par pertinence ; activation pour n'importe quel sujet quand `WEIBO_COOKIE` est configuré. |
 | **Perplexity** | Une synthèse contrôlée avec l’Agent API, un repli Sonar via OpenRouter, les résultats bruts de la Search API et Deep Research explicite. |
 | **Web** | La couverture éditoriale, les comparatifs de blogs. Un signal parmi d'autres, pas le seul. |
 

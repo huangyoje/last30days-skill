@@ -83,6 +83,7 @@ Se você vai se reunir com um CEO, já leu todos os tweets e todas as transcriç
 | **Bluesky** | A camada social descentralizada. Publicações do AT Protocol vindas da migração pós-Twitter. |
 | **V2EX** | Sinal das comunidades tech chinesas. Tópicos populares e listagens de nós da API pública do V2EX, filtrados por relevância. Grátis, sem chave de API. |
 | **Xueqiu (雪球)** | Sentimento do investidor chinês. Status da timeline pública filtrados por relevância; ativa automaticamente para tópicos de ticker/cripto quando `XUEQIU_COOKIE` está configurado. |
+| **Weibo (微博)** | Microblog chinês. Status da busca mobile (综合 + 实时) filtrados por relevância; ativa para qualquer tópico quando `WEIBO_COOKIE` está configurado. |
 | **Perplexity** | Síntese controlada da Agent API, alternativa Sonar via OpenRouter, resultados brutos da Search API e Deep Research explícito. |
 | **Web** | A cobertura editorial, as comparações de blog. Um sinal entre muitos, não o único. |
 

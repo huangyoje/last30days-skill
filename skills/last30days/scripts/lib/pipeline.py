@@ -70,6 +70,7 @@ from . import (
     truthsocial,
     trustpilot,
     v2ex,
+    weibo,
     x_judge,
     xai_x,
     xiaohongshu_api,
@@ -284,6 +285,11 @@ def available_sources(
     # V2EX uses the public API (no auth) and is always eligible, mirroring
     # hackernews/polymarket. Its listing adapter keeps it quiet off-topic.
     available.append("v2ex")
+    # Weibo (微博) requires a cookie because the mobile search endpoint
+    # returns empty/redirect for anonymous callers. General-purpose (no
+    # topic gate); only registered when the cookie is present.
+    if config.get("WEIBO_COOKIE"):
+        available.append("weibo")
     # GitHub is reachable via the unauthenticated REST tier too, so it is
     # available even without a token/gh CLI (a token only raises rate limits).
     available.append("github")
@@ -4903,6 +4909,15 @@ def _retrieve_stream_impl(
         relevance_topic = raw_topic or topic or subquery.search_query
         return (
             xueqiu.parse_xueqiu_response(result, query=relevance_topic),
+            _result_outcome_artifact(source, result),
+        )
+    if source == "weibo":
+        result = weibo.search_weibo(
+            subquery.search_query, from_date, to_date, depth=depth, config=config
+        )
+        relevance_topic = raw_topic or topic or subquery.search_query
+        return (
+            weibo.parse_weibo_response(result, query=relevance_topic),
             _result_outcome_artifact(source, result),
         )
     if source == "perplexity":

@@ -73,6 +73,7 @@ def normalize_source_items(
         "xiaohongshu": _normalize_grounding,
         "v2ex": _normalize_v2ex,
         "xueqiu": _normalize_xueqiu,
+        "weibo": _normalize_weibo,
         "github": _normalize_github,
         "perplexity": _normalize_grounding,
         "jobs": _normalize_jobs,
@@ -1000,6 +1001,41 @@ def _normalize_xueqiu(
         item_id=str(item.get("id") or f"XQ{index + 1}"),
         source=source,
         title=title or "雪球讨论",
+        body="\n".join(part for part in [title, snippet] if part),
+        url=url,
+        author=item.get("author") or None,
+        container=container,
+        published_at=item.get("date"),
+        date_confidence=_date_confidence(item, from_date, to_date),
+        engagement=item.get("engagement") or {},
+        relevance_hint=item.get("relevance", 0.5),
+        why_relevant=str(item.get("why_relevant") or ""),
+        snippet=snippet,
+        metadata=item.get("metadata") or {},
+    )
+
+
+def _normalize_weibo(
+    source: str,
+    item: dict[str, Any],
+    index: int,
+    from_date: str,
+    to_date: str,
+) -> schema.SourceItem:
+    """Normalizer for Weibo (微博) statuses.
+
+    Same web-item shape as V2EX / Xueqiu; container is the fixed "微博"
+    label so Chinese-social results group together in reports. Author id
+    and mblog id ride along in metadata.
+    """
+    title = str(item.get("title") or "").strip()
+    snippet = str(item.get("snippet") or "").strip()
+    url = str(item.get("url") or "").strip()
+    container = str(item.get("container") or "微博").strip()
+    return _source_item(
+        item_id=str(item.get("id") or f"WB{index + 1}"),
+        source=source,
+        title=title or "微博",
         body="\n".join(part for part in [title, snippet] if part),
         url=url,
         author=item.get("author") or None,

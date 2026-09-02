@@ -55,6 +55,7 @@ metadata:
       - rednote
       - v2ex
       - xueqiu
+      - weibo
       - trends
       - recency
       - news
