@@ -168,13 +168,61 @@ class TestSearchWeibo(unittest.TestCase):
         self.assertEqual(results[0]["id"], "1")
 
     @patch("lib.weibo._fetch_search")
-    def test_missing_cookie_is_error(self, mock_search):
+    @patch("lib.weibo._try_visitor_pass")
+    def test_no_cookie_falls_back_to_visitor_pass(self, mock_visitor, mock_search):
+        # Reset module state so this test path is exercised.
+        weibo._cookies_loaded = False
+        weibo._visitor_attempted = False
+        # Empty the jar to simulate a fresh process.
+        weibo._cookie_jar.clear()
+        # Visitor pass returns True and populates the jar for us.
+        def _install(*_a, **_kw):
+            weibo._set_cookie("SUB", "visitor-value", ".weibo.cn")
+            return True
+        mock_visitor.side_effect = _install
+        mock_search.side_effect = [
+            [{"card_type": 9, "mblog": self._make_mblog("1", "AI 讨论")}],
+            [], [], [],
+        ]
+        result = weibo.search_weibo(
+            "AI", "2024-06-01", "2024-06-30",
+            depth="quick", config={},
+        )
+        # Visitor pass was tried; search then executed and produced a hit.
+        mock_visitor.assert_called_once()
+        self.assertEqual(len(result["results"]), 1)
+
+    @patch("lib.weibo._fetch_search")
+    @patch("lib.weibo._try_visitor_pass")
+    def test_visitor_pass_failure_is_error(self, mock_visitor, mock_search):
+        weibo._cookies_loaded = False
+        weibo._visitor_attempted = False
+        weibo._cookie_jar.clear()
+        mock_visitor.return_value = False
         mock_search.return_value = []
         result = weibo.search_weibo("AI", "2024-06-01", "2024-06-30", config={})
         self.assertEqual(result["results"], [])
-        self.assertIn("WEIBO_COOKIE", result["error"])
-        # must not have made any network calls
+        self.assertIn("visitor pass", result["error"])
+        # must not have hit the search endpoint when credentials unavailable
         mock_search.assert_not_called()
+
+    @patch("lib.weibo._fetch_search")
+    @patch("lib.weibo._try_visitor_pass")
+    def test_user_cookie_skips_visitor_pass(self, mock_visitor, mock_search):
+        weibo._cookies_loaded = False
+        weibo._visitor_attempted = False
+        weibo._cookie_jar.clear()
+        mock_search.side_effect = [
+            [{"card_type": 9, "mblog": self._make_mblog("1", "AI 讨论")}],
+            [], [], [],
+        ]
+        result = weibo.search_weibo(
+            "AI", "2024-06-01", "2024-06-30",
+            depth="quick", config={"WEIBO_COOKIE": "SUB=real-user-cookie"},
+        )
+        # User cookie was loaded; visitor pass never invoked.
+        mock_visitor.assert_not_called()
+        self.assertEqual(len(result["results"]), 1)
 
     @patch("lib.weibo._fetch_search")
     def test_transport_error_envelope(self, mock_search):

@@ -83,7 +83,7 @@ If you're meeting with a CEO, have you read all their tweets and YouTube transcr
 | **Bluesky** | The decentralized social layer. AT Protocol posts from the post-Twitter migration. |
 | **V2EX** | Chinese tech-community signal. Hot topics and node listings from V2EX's public API, filtered by relevance. Free, no API key. |
 | **Xueqiu (雪球)** | Chinese investor sentiment. Public timeline statuses filtered by relevance; auto-activates for ticker/crypto topics when `XUEQIU_COOKIE` is configured. |
-| **Weibo (微博)** | Chinese microblog. Mobile-search statuses (综合 + 实时) filtered by relevance; activates for any topic when `WEIBO_COOKIE` is configured. |
+| **Weibo (微博)** | Chinese microblog. Mobile-search statuses (综合 + 实时) filtered by relevance. Free, no API key — auto-acquires a visitor pass on first call; optional `WEIBO_COOKIE` raises rate limits. |
 | **Perplexity** | Controlled Agent API synthesis, OpenRouter Sonar fallback, raw Search API rows, and explicit Deep Research. |
 | **Web** | The editorial coverage, the blog comparisons. One signal of many, not the only one. |
 

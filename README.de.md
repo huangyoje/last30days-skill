@@ -83,7 +83,7 @@ Wenn du dich mit einem CEO triffst: Hast du alle Tweets und YouTube-Transkripte 
 | **Bluesky** | Die dezentrale soziale Ebene. AT-Protocol-Beiträge aus der Abwanderung nach Twitter. |
 | **V2EX** | Chinesisches Tech-Community-Signal. Beliebte Themen und Node-Listings aus der öffentlichen V2EX-API, nach Relevanz gefiltert. Kostenlos, ohne API-Key. |
 | **Xueqiu (雪球)** | Chinesische Anlegerstimmung. Öffentliche Timeline-Statuse nach Relevanz gefiltert; aktiviert sich automatisch für Ticker/Krypto-Themen, wenn `XUEQIU_COOKIE` gesetzt ist. |
-| **Weibo (微博)** | Chinesischer Microblog. Mobile-Suchergebnisse (综合 + 实时) nach Relevanz gefiltert; aktiviert sich für beliebige Themen, wenn `WEIBO_COOKIE` gesetzt ist. |
+| **Weibo (微博)** | Chinesischer Microblog. Mobile-Suchergebnisse (综合 + 实时) nach Relevanz gefiltert. Kostenlos, ohne API-Key — holt beim ersten Aufruf einen Visitor Pass; optionales `WEIBO_COOKIE` erhöht die Rate-Limits. |
 | **Perplexity** | Gesteuerte Agent-API-Synthese, OpenRouter-Sonar-Fallback, Rohtreffer der Search API und explizite Deep Research. |
 | **Web** | Die redaktionelle Berichterstattung, die Blog-Vergleiche. Ein Signal von vielen, nicht das einzige. |
 

@@ -285,11 +285,12 @@ def available_sources(
     # V2EX uses the public API (no auth) and is always eligible, mirroring
     # hackernews/polymarket. Its listing adapter keeps it quiet off-topic.
     available.append("v2ex")
-    # Weibo (微博) requires a cookie because the mobile search endpoint
-    # returns empty/redirect for anonymous callers. General-purpose (no
-    # topic gate); only registered when the cookie is present.
-    if config.get("WEIBO_COOKIE"):
-        available.append("weibo")
+    # Weibo (微博) auto-acquires a visitor pass cookie when WEIBO_COOKIE
+    # is not configured, so it is always eligible; a real logged-in
+    # cookie only raises rate limits. General-purpose (no topic gate).
+    # Disable with EXCLUDE_SOURCES=weibo when visitor-pass generation
+    # is unwanted.
+    available.append("weibo")
     # GitHub is reachable via the unauthenticated REST tier too, so it is
     # available even without a token/gh CLI (a token only raises rate limits).
     available.append("github")

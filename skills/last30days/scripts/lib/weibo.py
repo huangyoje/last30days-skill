@@ -1,13 +1,14 @@
 """Weibo (微博) — Chinese microblog source for last30days.
 
 Searches Weibo's public mobile search endpoint for statuses matching the
-research topic. Uses a Cookie (``WEIBO_COOKIE`` in the config) because the
-search endpoint returns empty/redirect for anonymous callers; the cookie is
-read-only and never sent anywhere except weibo.cn.
+research topic. Weibo's search endpoint returns empty/redirect for
+anonymous callers, so the adapter needs credentials — but supplying them
+is not the user's problem: on first use it auto-generates a visitor pass
+cookie via ``passport.weibo.com/visitor/genvisitor``. Users can override
+with a real logged-in cookie (``WEIBO_COOKIE`` in the config) for higher
+rate limits, but no configuration is required to make the source work.
 
-Activation gate: this source is only available when a Weibo cookie is
-configured. Unlike Xueqiu (financial gate), Weibo is a general-purpose
-platform and applies to any topic. See ``pipeline.available_sources``.
+General-purpose (no topic gate): the source is always registered.
 
 Search model: unlike Xueqiu (no keyword endpoint), Weibo's mobile search
 does accept a keyword directly, so this adapter follows the search-listing
@@ -16,8 +17,10 @@ card groups, and keep statuses whose text shares informative tokens with
 the topic.
 
 Endpoints used:
-- GET /api/container/getIndex?containerid=100103type%3D1%26q=<kw>  -> 综合搜索
-- GET /api/container/getIndex?containerid=100103type%3D61%26q=<kw> -> 实时搜索
+- GET  /api/container/getIndex?containerid=100103type%3D1%26q=<kw>  -> 综合搜索
+- GET  /api/container/getIndex?containerid=100103type%3D61%26q=<kw> -> 实时搜索
+- POST passport.weibo.com/visitor/genvisitor                        -> tid seed
+- GET  passport.weibo.com/visitor/visitor?a=incarnate               -> SUB/SUBP
 """
 
 from __future__ import annotations
@@ -62,6 +65,7 @@ _opener = urllib.request.build_opener(
     urllib.request.HTTPCookieProcessor(_cookie_jar),
 )
 _cookies_loaded = False
+_visitor_attempted = False
 
 
 def _log(msg: str) -> None:
@@ -72,8 +76,46 @@ def _today() -> datetime:
     return datetime.now(_CST)
 
 
+def _set_cookie(name: str, value: str, domain: str) -> None:
+    """Install a single cookie into the shared jar for the given domain."""
+    try:
+        _cookie_jar.set_cookie(
+            _py_http_cookiejar.Cookie(
+                version=0,
+                name=name,
+                value=value,
+                port=None,
+                port_specified=False,
+                domain=domain,
+                domain_specified=True,
+                domain_initial_dot=domain.startswith("."),
+                path="/",
+                path_specified=True,
+                secure=True,
+                expires=None,
+                discard=True,
+                comment=None,
+                comment_url=None,
+                rest={},
+            )
+        )
+    except Exception as exc:  # malformed single cookie: skip, keep others
+        _log(f"skip malformed cookie pair {name!r}: {exc}")
+
+
+def _has_weibo_cookie() -> bool:
+    """True when the jar carries any credential for weibo.cn or weibo.com."""
+    for cookie in _cookie_jar:
+        if "weibo" in (cookie.domain or ""):
+            return True
+    return False
+
+
 def _load_cookie_from_config(config: Optional[Dict[str, Any]]) -> bool:
-    """Load the cookie string from config into the shared jar. Idempotent."""
+    """Load the WEIBO_COOKIE string from config into the shared jar. Idempotent.
+
+    Returns True if a cookie was loaded (or already present), False otherwise.
+    """
     global _cookies_loaded
     if _cookies_loaded:
         return True
@@ -85,36 +127,117 @@ def _load_cookie_from_config(config: Optional[Dict[str, Any]]) -> bool:
         if "=" not in pair:
             continue
         name, _, value = pair.partition("=")
-        try:
-            _cookie_jar.set_cookie(
-                _py_http_cookiejar.Cookie(
-                    version=0,
-                    name=name.strip(),
-                    value=value.strip(),
-                    port=None,
-                    port_specified=False,
-                    domain=".weibo.cn",
-                    domain_specified=True,
-                    domain_initial_dot=True,
-                    path="/",
-                    path_specified=True,
-                    secure=True,
-                    expires=None,
-                    discard=True,
-                    comment=None,
-                    comment_url=None,
-                    rest={},
-                )
-            )
-        except Exception as exc:  # malformed single cookie: skip, keep others
-            _log(f"skip malformed cookie pair {name!r}: {exc}")
+        # Set on both weibo.cn and weibo.com so the jar covers whichever
+        # subdomain the request targets, matching browser behaviour where
+        # the user copied the cookie from either.
+        for domain in (".weibo.cn", ".weibo.com"):
+            _set_cookie(name.strip(), value.strip(), domain)
     _cookies_loaded = True
     return True
 
 
+def _try_visitor_pass() -> bool:
+    """Generate an anonymous visitor cookie via passport.weibo.com. Once per session.
+
+    Two-step JSONP flow:
+      1. POST /visitor/genvisitor with a browser fingerprint -> tid + confidence
+      2. GET  /visitor/visitor?a=incarnate&t=<tid>&...       -> SUB / SUBP
+    Cookies are installed on both weibo.cn and weibo.com. Returns True on
+    success; failures are logged and the source will surface an empty error
+    envelope on the next request.
+    """
+    global _visitor_attempted
+    if _visitor_attempted:
+        return _has_weibo_cookie()
+    _visitor_attempted = True
+
+    try:
+        fp = json.dumps({
+            "os": "2",
+            "browser": "Chrome122,0,0,0",
+            "fonts": "undefined",
+            "screenInfo": "1920*1080*24",
+            "plugins": "",
+        }, separators=(",", ":"))
+        form = urllib.parse.urlencode({"cb": "gen_callback", "fp": fp}).encode("utf-8")
+        req1 = urllib.request.Request(
+            "https://passport.weibo.com/visitor/genvisitor",
+            data=form,
+            headers={
+                "User-Agent": _UA,
+                "Referer": "https://passport.weibo.com/visitor/visitor",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+        )
+        with _opener.open(req1, timeout=_TIMEOUT) as resp:
+            body1 = resp.read(64 * 1024).decode("utf-8", errors="ignore")
+        m = re.search(r"gen_callback\s*\(\s*(\{.+?\})\s*\)\s*;?\s*$", body1)
+        if not m:
+            _log(f"visitor pass step 1: unexpected response shape: {body1[:120]!r}")
+            return False
+        data1 = json.loads(m.group(1))
+        payload1 = data1.get("data") or {}
+        tid = payload1.get("tid")
+        if not tid:
+            _log("visitor pass step 1: no tid in response")
+            return False
+        confidence = int(payload1.get("confidence") or 100)
+        new_tid = bool(payload1.get("new_tid"))
+        w = "3" if new_tid else "2"
+
+        url2 = (
+            "https://passport.weibo.com/visitor/visitor"
+            f"?a=incarnate&t={urllib.parse.quote(tid)}&w={w}&c={confidence:03d}"
+            "&gc=&cb=cross_domain&from=weibo&_rand=0"
+        )
+        req2 = urllib.request.Request(
+            url2,
+            headers={
+                "User-Agent": _UA,
+                "Referer": "https://passport.weibo.com/visitor/visitor",
+            },
+        )
+        with _opener.open(req2, timeout=_TIMEOUT) as resp:
+            body2 = resp.read(64 * 1024).decode("utf-8", errors="ignore")
+        m = re.search(r"cross_domain\s*\(\s*(\{.+?\})\s*\)\s*;?\s*$", body2)
+        if not m:
+            _log(f"visitor pass step 2: unexpected response shape: {body2[:120]!r}")
+            return False
+        data2 = json.loads(m.group(1))
+        if data2.get("retcode") != 20000000:
+            _log(f"visitor pass step 2: retcode {data2.get('retcode')}")
+            return False
+        payload2 = data2.get("data") or {}
+        sub = payload2.get("sub")
+        subp = payload2.get("subp") or ""
+        if not sub:
+            _log("visitor pass step 2: no sub in response")
+            return False
+        for domain in (".weibo.cn", ".weibo.com"):
+            _set_cookie("SUB", sub, domain)
+            if subp:
+                _set_cookie("SUBP", subp, domain)
+        _log("visitor pass acquired (anonymous)")
+        return True
+    except (urllib.error.HTTPError, urllib.error.URLError) as exc:
+        _log(f"visitor pass network error: {exc}")
+        return False
+    except (json.JSONDecodeError, ValueError, KeyError) as exc:
+        _log(f"visitor pass parse error: {exc}")
+        return False
+
+
+def _ensure_credentials(config: Optional[Dict[str, Any]]) -> bool:
+    """Ensure the jar has usable Weibo credentials. User cookie takes priority."""
+    _load_cookie_from_config(config)
+    if _has_weibo_cookie():
+        return True
+    return _try_visitor_pass()
+
+
 def _get_json(url: str, config: Optional[Dict[str, Any]] = None) -> Any:
     """Fetch JSON with cookie-aware opener. Raises HTTPError on failure."""
-    _load_cookie_from_config(config)
+    _ensure_credentials(config)
     req = urllib.request.Request(
         url,
         headers={
@@ -331,15 +454,23 @@ def search_weibo(
 
     Returns ``{"results": [...]}`` with normalized web-item dicts. On
     transport/parse failure returns ``{"results": [], "error": "..."}``.
-    A missing cookie is a configuration error, not a quiet empty state.
+    User cookie is optional — the adapter auto-acquires a visitor pass
+    when ``WEIBO_COOKIE`` is not configured; only if visitor-pass
+    generation itself fails does the surface become an error envelope.
     """
     if not topic or not topic.strip():
         return {"results": []}
 
     limit = DEPTH_CONFIG.get(depth, DEPTH_CONFIG["default"])
 
-    if not (config or {}).get(COOKIE_CONFIG_KEY):
-        return {"results": [], "error": f"{COOKIE_CONFIG_KEY} not configured"}
+    if not _ensure_credentials(config):
+        return {
+            "results": [],
+            "error": (
+                "Weibo credentials unavailable: no WEIBO_COOKIE and "
+                "visitor pass generation failed"
+            ),
+        }
 
     keyword = topic.strip()
     raw_items: List[Dict[str, Any]] = []
